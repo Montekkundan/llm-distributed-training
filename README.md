@@ -9,6 +9,8 @@ This is a **CPU-only** student project for lectures 74–89 of *From random weig
 
 An optional [PyTorch two-rank lab](src/distributed_lab/torch_distributed.py) adds **real Gloo collectives on two CPU processes** for a small column-then-row tensor-parallel FFN. Each rank owns half the hidden features. The lab compares the collective output, both weight-gradient shards, summed input gradient, and one sharded SGD step with serial autograd. This is a correctness check, not a speed or memory result. No accelerator kernels, activation checkpointing, ZeRO/FSDP, 1F1B, Zero Bubble, DualPipe, expert parallelism, distributed checkpoint, or performance measurement are implemented here. The pipeline schedule is a sequential **fill-drain event trace**, and the context exercise tests blockwise softmax algebra without Ring Attention's communication. See [LESSON_MAP.md](LESSON_MAP.md) for the lesson-by-lesson scope.
 
+A second [PyTorch DDP lab](src/distributed_lab/ddp_decoder.py) trains a one-block causal decoder on two CPU/Gloo ranks. It compares the average of two equal-sized local next-token losses, every synchronized parameter gradient, and one SGD update against a serial full-batch model. A causal-prefix test confirms that later tokens cannot change earlier logits. This is a numerical correctness exercise, not a GPU throughput result.
+
 ## Run
 
 Use Python 3.10 or newer from this directory; installation and a GPU are unnecessary:
@@ -25,14 +27,15 @@ For the real two-process lab, install the optional dependency in a virtual envir
 ```bash
 python3 -m pip install -e '.[torch]'
 python3 -m distributed_lab.torch_distributed
+python3 -m distributed_lab.ddp_decoder
 python3 -m unittest discover -s tests -v
 ```
 
-The lab uses a fresh file rendezvous, Gloo, `float64` tensors, and two spawned CPU workers. On macOS it defaults to the `lo0` loopback interface unless `GLOO_SOCKET_IFNAME` is already set. It needs permission to bind a local socket. The worker asserts shape and numerical parity against a serial FFN and reports maximum absolute errors. Failures in either rank make the parent command fail. The standard-library suite still runs when PyTorch is absent; the optional integration test skips in that case.
+Both labs use a fresh file rendezvous, Gloo, `float64` tensors, and two spawned CPU workers. On macOS they default to the `lo0` loopback interface unless `GLOO_SOCKET_IFNAME` is already set. They need permission to bind a local socket. Failures in either rank make the parent command fail. The standard-library suite still runs when PyTorch is absent; optional integration tests skip in that case. The DDP comparison assumes two equal-sized shards and a mean loss on each rank; uneven shards require weighting by sample/token count rather than naively averaging local means.
 
 ## Next implementation steps
 
-Extend the two-rank FFN to multi-GPU/NCCL with an explicit per-rank device mapping; compare forward, backward, and optimizer update again before measuring peak memory, throughput, and communication overlap on named hardware. Then add separate real DDP, pipeline send/receive, FSDP, context-ring, and expert-routing exercises. The present tensor-parallel lab replicates the same batch on each rank and manually supplies the gradient of the reduced output to the local partial; it is not a general autograd-aware distributed operator. Real DDP averages gradients according to its documented semantics; the original data-partition toy uses summed local sample gradients divided by the global count to stay correct for uneven shard sizes. A production implementation needs to handle sampler behavior, loss reduction, and accumulation consistently.
+Extend the two-rank labs to multi-GPU/NCCL with explicit device mapping and parity checks before measuring peak memory, throughput, and communication overlap on named hardware. Then add real pipeline send/receive, FSDP, context-ring, and expert-routing exercises. The tensor-parallel FFN replicates the same batch on each rank and manually supplies the gradient of the reduced output to the local partial; it is not a general autograd-aware distributed operator. The DDP lab uses a fixed equal-shard batch rather than a distributed sampler, checkpointing, mixed precision, or gradient accumulation. A production implementation needs to handle those details and uneven token counts explicitly.
 
 ## Primary references
 

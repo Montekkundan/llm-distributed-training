@@ -1,12 +1,12 @@
 # Lectures 74–89: code and exercise map
 
-The four standard-library exercises are narrow CPU contracts; the optional PyTorch lab runs one real two-rank FFN. “Future” below means **not implemented** in this starter.
+The four standard-library exercises are narrow CPU contracts; optional PyTorch labs run a two-rank DDP decoder and a two-rank tensor-parallel FFN. “Future” below means **not implemented** in this starter.
 
 | Lecture | Topic | File / command | Scope |
 | --- | --- | --- | --- |
 | 74 | GPU profiling | `README.md` | Future: use actual profiler traces and measured bottlenecks. |
 | 75 | Mixed precision and recomputation | `README.md` | Future: numeric tolerance, memory accounting, activation checkpointing. |
-| 76 | DDP | `src/distributed_lab/data.py`; `PYTHONPATH=src python3 -m distributed_lab.checks` | Implemented: uneven sample ownership and global-count gradient reduction; future: processes and all-reduce. |
+| 76 | DDP | `src/distributed_lab/data.py`; `python3 -m distributed_lab.ddp_decoder` with optional PyTorch installed | Implemented: uneven-sample algebra and real two-rank CPU/Gloo causal-decoder gradient/update parity for equal shards. Future: distributed sampler, uneven shards, GPU/NCCL. |
 | 77 | ZeRO | `README.md` | Future: shard optimizer state and verify parity after an update. |
 | 78 | FSDP | `README.md` | Future: shard parameters/gradients and model state. |
 | 79 | Tensor-parallel FFN | `src/distributed_lab/tensor.py`; `python3 -m distributed_lab.torch_distributed` with optional PyTorch installed | Implemented: row/column matrix-vector algebra plus a two-rank CPU/Gloo sharded FFN with real output/input-gradient all-reduces and serial forward/backward/update parity. Future: GPU/NCCL profiling and broader shapes. |
@@ -21,4 +21,4 @@ The four standard-library exercises are narrow CPU contracts; the optional PyTor
 | 88 | Compose DP/TP/PP/CP/EP | All four modules | Separate contracts only; future: one jointly executable topology and global reference parity. |
 | 89 | Distributed checkpoint/resume | `README.md` | Future: shard manifest, restore, and bitwise/within-tolerance continuation test. |
 
-The standard-library modules have tests in `tests/test_contracts.py`; the optional two-process lab has `tests/test_torch_distributed.py`. The table is a teaching map, not a claim that the complete distributed training framework is present.
+The standard-library modules have tests in `tests/test_contracts.py`; the optional two-process labs have `tests/test_torch_distributed.py` and `tests/test_ddp_decoder.py`. The table is a teaching map, not a claim that the complete distributed training framework is present.
