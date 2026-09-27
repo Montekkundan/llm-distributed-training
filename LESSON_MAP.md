@@ -1,6 +1,6 @@
 # Lectures 74–89: code and exercise map
 
-The four implemented exercises are narrow CPU contracts. “Future” below means **not implemented** in this starter.
+The four standard-library exercises are narrow CPU contracts; the optional PyTorch lab runs one real two-rank FFN. “Future” below means **not implemented** in this starter.
 
 | Lecture | Topic | File / command | Scope |
 | --- | --- | --- | --- |
@@ -9,7 +9,7 @@ The four implemented exercises are narrow CPU contracts. “Future” below mean
 | 76 | DDP | `src/distributed_lab/data.py`; `PYTHONPATH=src python3 -m distributed_lab.checks` | Implemented: uneven sample ownership and global-count gradient reduction; future: processes and all-reduce. |
 | 77 | ZeRO | `README.md` | Future: shard optimizer state and verify parity after an update. |
 | 78 | FSDP | `README.md` | Future: shard parameters/gradients and model state. |
-| 79 | Tensor-parallel FFN | `src/distributed_lab/tensor.py`; `PYTHONPATH=src python3 -m unittest discover -s tests -v` | Implemented: row/column matrix-vector split and gather/sum algebra; future: batched FFN and collectives. |
+| 79 | Tensor-parallel FFN | `src/distributed_lab/tensor.py`; `python3 -m distributed_lab.torch_distributed` with optional PyTorch installed | Implemented: row/column matrix-vector algebra plus a two-rank CPU/Gloo sharded FFN with real output/input-gradient all-reduces and serial forward/backward/update parity. Future: GPU/NCCL profiling and broader shapes. |
 | 80 | Tensor-parallel attention and MLA | `src/distributed_lab/tensor.py` | Foundation only: linear partition contracts. Future: attention/MLA projections and backward parity. |
 | 81 | GPipe | `src/distributed_lab/pipeline.py` | Implemented: contiguous stages, fill-drain event order, serial gradient parity; future: pipeline processes and sends. |
 | 82 | 1F1B | `README.md` | Future: dependency-valid interleaved schedule and bubble accounting. |
@@ -21,4 +21,4 @@ The four implemented exercises are narrow CPU contracts. “Future” below mean
 | 88 | Compose DP/TP/PP/CP/EP | All four modules | Separate contracts only; future: one jointly executable topology and global reference parity. |
 | 89 | Distributed checkpoint/resume | `README.md` | Future: shard manifest, restore, and bitwise/within-tolerance continuation test. |
 
-Each implemented file has a matching test in `tests/test_contracts.py`. The table is a teaching map, not a claim that the complete distributed training framework is present.
+The standard-library modules have tests in `tests/test_contracts.py`; the optional two-process lab has `tests/test_torch_distributed.py`. The table is a teaching map, not a claim that the complete distributed training framework is present.

@@ -1,13 +1,13 @@
 # Distributed training contract lab
 
-This is a **CPU-only, standard-library** student project for lectures 74–89 of *From random weights to your own LLM*. It makes four mathematical and ownership contracts executable before students introduce PyTorch distributed processes and GPUs:
+This is a **CPU-only** student project for lectures 74–89 of *From random weights to your own LLM*. Its four original mathematical and ownership contract exercises use only the standard library:
 
 1. **Data partitioning:** every sample has one owner; uneven local gradient sums must be reduced using the *global sample count*.
 2. **Pipeline partitioning:** contiguous layer stages preserve forward and backward dependencies, and accumulated microbatch gradients equal a serial chain's gradients.
 3. **Tensor partitioning:** a column split concatenates output features; a row split sums partial outputs. Both match a serial matrix-vector product.
 4. **Context partitioning:** query and key/value blocks cover the sequence once; stable local softmax statistics merge to the exact causal-attention forward result.
 
-No network collectives, accelerator kernels, optimizer, activation checkpointing, ZeRO/FSDP, 1F1B, Zero Bubble, DualPipe, expert parallelism, distributed checkpoint, or performance measurement are implemented here. The pipeline schedule is a sequential **fill-drain event trace**, and the context exercise tests blockwise softmax algebra without Ring Attention's communication. See [LESSON_MAP.md](LESSON_MAP.md) for the lesson-by-lesson scope.
+An optional [PyTorch two-rank lab](src/distributed_lab/torch_distributed.py) adds **real Gloo collectives on two CPU processes** for a small column-then-row tensor-parallel FFN. Each rank owns half the hidden features. The lab compares the collective output, both weight-gradient shards, summed input gradient, and one sharded SGD step with serial autograd. This is a correctness check, not a speed or memory result. No accelerator kernels, activation checkpointing, ZeRO/FSDP, 1F1B, Zero Bubble, DualPipe, expert parallelism, distributed checkpoint, or performance measurement are implemented here. The pipeline schedule is a sequential **fill-drain event trace**, and the context exercise tests blockwise softmax algebra without Ring Attention's communication. See [LESSON_MAP.md](LESSON_MAP.md) for the lesson-by-lesson scope.
 
 ## Run
 
@@ -20,9 +20,19 @@ PYTHONPATH=src python3 -m unittest discover -s tests -v
 
 The first command prints four booleans and exits nonzero if any parity check fails. The second runs the invariant suite. Start at `src/distributed_lab/partitions.py`, then read `data.py`, `pipeline.py`, `tensor.py`, and `context.py`. Change a partition or reduction rule deliberately and use the tests to identify the broken contract.
 
+For the real two-process lab, install the optional dependency in a virtual environment and run:
+
+```bash
+python3 -m pip install -e '.[torch]'
+python3 -m distributed_lab.torch_distributed
+python3 -m unittest discover -s tests -v
+```
+
+The lab uses a fresh file rendezvous, Gloo, `float64` tensors, and two spawned CPU workers. On macOS it defaults to the `lo0` loopback interface unless `GLOO_SOCKET_IFNAME` is already set. It needs permission to bind a local socket. The worker asserts shape and numerical parity against a serial FFN and reports maximum absolute errors. Failures in either rank make the parent command fail. The standard-library suite still runs when PyTorch is absent; the optional integration test skips in that case.
+
 ## Next implementation steps
 
-Replace each CPU simulation with a separate PyTorch distributed exercise, preserving its serial parity test: initialize process groups, send tensors between stages, implement real collectives, compare forward **and backward** numerics, and only then measure memory/throughput. Use tiny inputs for correctness first. Real DDP averages gradients according to its documented semantics; the toy here uses summed local sample gradients divided by the global count to stay correct for uneven shard sizes. A production implementation needs to handle sampler behavior, loss reduction, and accumulation consistently.
+Extend the two-rank FFN to multi-GPU/NCCL with an explicit per-rank device mapping; compare forward, backward, and optimizer update again before measuring peak memory, throughput, and communication overlap on named hardware. Then add separate real DDP, pipeline send/receive, FSDP, context-ring, and expert-routing exercises. The present tensor-parallel lab replicates the same batch on each rank and manually supplies the gradient of the reduced output to the local partial; it is not a general autograd-aware distributed operator. Real DDP averages gradients according to its documented semantics; the original data-partition toy uses summed local sample gradients divided by the global count to stay correct for uneven shard sizes. A production implementation needs to handle sampler behavior, loss reduction, and accumulation consistently.
 
 ## Primary references
 
