@@ -55,6 +55,28 @@ class ExpertRoutingTests(unittest.TestCase):
         for key in ("forward_error", "gradient_error", "post_step_error"):
             self.assertLess(result[key], 1e-10, key)
 
+    def test_all_to_all_exchange_matches_serial(self) -> None:
+        try:
+            import torch.distributed as dist
+        except ImportError:
+            self.skipTest("optional PyTorch dependency is unavailable")
+        if not dist.is_available() or not dist.is_gloo_available():
+            self.skipTest("PyTorch Gloo backend is unavailable")
+        from distributed_lab.expert_parallel import run_all_to_all_parity
+
+        result = run_all_to_all_parity()
+        self.assertEqual((result["backend"], result["collective"], result["world_size"]),
+                         ("gloo", "all_to_all_single", 2))
+        self.assertEqual(result["expert_counts"], [2, 2, 2, 2])
+        self.assertEqual(result["dropped_assignments"], 2)
+        # Tokens 0, 2, 4 live on rank 0 and 1, 3 on rank 1; experts 0, 1 on rank 0 and 2, 3 on rank 1.
+        # Accepted (token, expert): (0,0) (0,1) (1,0) (1,1) (2,2) (3,3) (4,2) (4,3).
+        # Rank 0 sends 2 rows to itself and 3 to rank 1; rank 1 sends 2 to rank 0 and 1 to itself.
+        self.assertEqual(result["tokens_per_rank"], [3, 2])
+        self.assertEqual(result["rows_sent"], [[2, 3], [2, 1]])
+        for key in ("forward_error", "gradient_error", "post_step_error"):
+            self.assertLess(result[key], 1e-12, key)
+
 
 if __name__ == "__main__":
     unittest.main()
