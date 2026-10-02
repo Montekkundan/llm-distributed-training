@@ -52,6 +52,19 @@ def split_backward(stages: int, microbatches: int) -> tuple[Scheduled, ...]:
 
     One F/B/W operation consumes one unit on each stage. This is a legal
     split-backward reference policy, not ZB-H1, ZB-H2, or DualPipe.
+
+    The policy has no activation-memory limit, and that is intentional. A forward
+    runs as soon as its upstream forward is done, and W runs only when no B or F is
+    ready, so every stage admits all m microbatches before its first W frees one.
+    The saved-input peak is therefore m on every stage ([m] * p), where 1F1B has
+    min(p - s, m) on stage s. For m >= p the makespan equals the lower bound
+    (p - 1) + 3 m for unit F, B, W (see costs.split_backward_makespan_lower_bound),
+    so the bubble beyond the start-up delay is zero, but only because memory is
+    unbounded. Published Zero Bubble schedules (arXiv 2401.10241) fix an activation
+    budget (ZB-H1 near the 1F1B level, ZB-H2 a larger multiple) and trade bubble
+    against it. Read the peaks and the makespan here as the unconstrained end of
+    that trade, not as ZB-H1 or ZB-H2 results. The model also keeps a whole saved
+    input per microbatch until W, which overstates what a real B pass can free.
     """
     if stages < 1 or microbatches < 1:
         raise ValueError("positive stages and microbatches required")
