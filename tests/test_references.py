@@ -25,6 +25,10 @@ class ScheduleTests(unittest.TestCase):
         self.assertTrue(validate(events, 3, 6, split=True))
         peaks = activation_peaks(events, 3, split=True)
         self.assertTrue(all(peak >= 1 for peak in peaks))
+        # Intentional: no activation cap, so every stage holds all m inputs until W,
+        # unlike 1F1B's [3, 2, 1]. See the split_backward docstring.
+        self.assertEqual(peaks, [6, 6, 6])
+        self.assertEqual(activation_peaks(one_f_one_b(3, 6), 3), [3, 2, 1])
         self.assertTrue(any(event.kind == "W" for event in events))
         # Compare equal F=1, complete backward=2, split input/weight backward=1+1.
         baseline = one_f_one_b(3, 6, backward_ticks=2)
@@ -187,6 +191,17 @@ class ReferenceParityTests(unittest.TestCase):
             (saved / "rank-0001.pt").write_bytes(b"corrupt")
             with self.assertRaisesRegex(ValueError, "checksum"):
                 load_checkpoint(saved)
+
+    def test_saving_an_existing_step_says_how_to_proceed(self):
+        from distributed_lab.checkpoint import save_checkpoint
+        shard = {"model": torch.zeros(1), "optimizer": {}, "rng": torch.get_rng_state(), "cursor": 0}
+        metadata = {"model_version": "m", "data_version": "d", "tokenizer_version": "t", "mesh": {}}
+        with TemporaryDirectory() as root:
+            save_checkpoint(root, step=2, shards=[shard], metadata=metadata)
+            with self.assertRaisesRegex(ValueError, "already exists.*new step.*move or delete"):
+                save_checkpoint(root, step=2, shards=[shard], metadata=metadata)
+            with self.assertRaisesRegex(ValueError, "nonnegative"):
+                save_checkpoint(root, step=-1, shards=[shard], metadata=metadata)
 
 
 if __name__ == "__main__":
