@@ -16,8 +16,12 @@ def save_checkpoint(root, *, step, shards, metadata):
     root = Path(root)
     root.mkdir(parents=True, exist_ok=True)
     destination = root / f"step-{step:08d}"
-    if step < 0 or not shards or destination.exists():
+    if step < 0 or not shards:
         raise ValueError("nonnegative new step and nonempty shards required")
+    if destination.exists():
+        # Committed versions are never overwritten: tell the caller how to proceed.
+        raise ValueError(f"checkpoint {destination} already exists; save under a new step, "
+                         "or move or delete that directory first (existing versions are never overwritten)")
     required = {"model", "optimizer", "rng", "cursor"}
     if any(not required <= shard.keys() for shard in shards):
         raise ValueError("each shard needs model, optimizer, RNG, and data cursor")
